@@ -5,7 +5,7 @@
 # Filenames carry the version, e.g. dist/server/ipbeamd-1.0.0-openwrt-arm64.
 # Override the version with, e.g., `make packages VERSION=1.1.0`.
 
-VERSION ?= 1.0.1
+VERSION ?= 1.0.2
 DIST := dist
 SRV := $(DIST)/server
 CLI := $(DIST)/client

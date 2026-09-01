@@ -154,6 +154,12 @@ func main() {
 		log.Fatalf("listen: %v", err)
 	}
 	defer conn.Close()
+	if cfg.WanIf != "" {
+		if _, ierr := net.InterfaceByName(cfg.WanIf); ierr != nil {
+			logOut.Printf("WARN wan_if %q is not present yet (%v); the gate matches nothing until it appears — verify with `ip route show default` (PPPoE is usually \"pppoe-wan\")",
+				cfg.WanIf, ierr)
+		}
+	}
 	logOut.Printf("INFO ipbeamd %s listening on %s (backend %s, wan %s, timeout %s; log_grants=%t log_rejects=%t)",
 		version, cfg.Listen, cfg.Backend, cfg.WanIf, cfg.Timeout, cfg.LogGrants, cfg.LogRejects)
 
@@ -188,6 +194,14 @@ func (s *server) handle(conn *net.UDPConn, src *net.UDPAddr, data []byte) {
 	}
 
 	ip := src.IP
+	// A beam whose source is a private/loopback/link-local address (e.g. a
+	// client on the LAN) doesn't need whitelisting — the WAN gate wouldn't apply
+	// to it anyway. Skip it and note it, so the allow-list only ever holds
+	// routable public addresses.
+	if isNonPublic(ip) {
+		s.info("ignoring beam from non-public source %s (node %q) — not added to allow-list", ip, pkt.NodeName)
+		return
+	}
 	set := s.cfg.Set4
 	if ip.To4() == nil {
 		set = s.cfg.Set6
@@ -232,6 +246,20 @@ func (s *server) grant(format string, args ...any) {
 	if s.cfg.LogGrants {
 		logOut.Printf("INFO "+format, args...)
 	}
+}
+
+// info logs an informational note at INFO, only when log_grants is enabled.
+func (s *server) info(format string, args ...any) {
+	if s.cfg.LogGrants {
+		logOut.Printf("INFO "+format, args...)
+	}
+}
+
+// isNonPublic reports whether ip is an RFC1918/ULA private, loopback,
+// link-local, or unspecified address — none of which belong in the WAN
+// allow-list.
+func isNonPublic(ip net.IP) bool {
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()
 }
 
 // reject logs a failed/dropped beam at WARN, only when log_rejects is enabled.

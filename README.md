@@ -48,7 +48,8 @@ password.
 2–4. **Verify** — the daemon checks the signature, the timestamp, and the nonce.
    Any failure is dropped, most in total silence.
 5. **Grant** — the sender's *observed* public IP is added to the allow-list with
-   a 60-minute timeout.
+   a 60-minute timeout. A private/LAN source (RFC1918, loopback, link-local) is
+   ignored and logged, never added — only routable public IPs go in.
 6. **Confirm** — a signed acknowledgement lets the app show success.
 7. **Expire** — with no fresh beam the entry removes itself; a repeat beam every
    ~45 min keeps it alive.
@@ -178,14 +179,14 @@ version in each filename.
 
 ```sh
 make test                 # unit tests
-make server-openwrt       # -> dist/server/ipbeamd-1.0.1-openwrt-arm64  (Flint 2)
-make server-ubuntu        # -> dist/server/ipbeamd-1.0.1-ubuntu-amd64
-make clients              # -> dist/client/ipbeam-1.0.1-{windows,macos,linux}-*
+make server-openwrt       # -> dist/server/ipbeamd-1.0.2-openwrt-arm64  (Flint 2)
+make server-ubuntu        # -> dist/server/ipbeamd-1.0.2-ubuntu-amd64
+make clients              # -> dist/client/ipbeam-1.0.2-{windows,macos,linux}-*
 
-make deb                  # -> dist/server/ipbeamd_1.0.1_amd64.deb    (needs nfpm)
-make openwrt-pkg          # -> dist/server/ipbeamd-1.0.1-openwrt-arm64.tar.gz
+make deb                  # -> dist/server/ipbeamd_1.0.2_amd64.deb    (needs nfpm)
+make openwrt-pkg          # -> dist/server/ipbeamd-1.0.2-openwrt-arm64.tar.gz
 make packages             # deb + openwrt tarball + CLI clients
-make android              # -> dist/client/ipbeamer-1.0.1.apk (needs Android SDK + JDK 17)
+make android              # -> dist/client/ipbeamer-1.0.2.apk (needs Android SDK + JDK 17)
 ```
 
 `make deb` needs [`nfpm`](https://nfpm.goreleaser.com/install/). Override the
@@ -196,9 +197,9 @@ version on any target, e.g. `make packages VERSION=1.1.0`.
 ```sh
 # build the package (dev machine), copy it over, install
 make deb
-scp dist/server/ipbeamd_1.0.1_amd64.deb user@server:/tmp/
+scp dist/server/ipbeamd_1.0.2_amd64.deb user@server:/tmp/
 ssh user@server
-sudo apt install /tmp/ipbeamd_1.0.1_amd64.deb   # installs binary, unit, config; enables service
+sudo apt install /tmp/ipbeamd_1.0.2_amd64.deb   # installs binary, unit, config; enables service
 
 # edit the config and start
 sudo vi /etc/ipbeam/config.json   # set password, wan_if, tcp_ports, udp_ports
@@ -216,11 +217,11 @@ it restarts a running service. If you run `ufw`, allow the beam UDP port
 ```sh
 # build the tarball (dev machine), copy it over
 make openwrt-pkg
-scp dist/server/ipbeamd-1.0.1-openwrt-arm64.tar.gz root@192.168.8.1:/tmp/
+scp dist/server/ipbeamd-1.0.2-openwrt-arm64.tar.gz root@192.168.8.1:/tmp/
 
 # on the router: unpack and run the installer
 ssh root@192.168.8.1
-mkdir -p /tmp/ipbeam && tar -C /tmp/ipbeam -xzf /tmp/ipbeamd-1.0.1-openwrt-arm64.tar.gz
+mkdir -p /tmp/ipbeam && tar -C /tmp/ipbeam -xzf /tmp/ipbeamd-1.0.2-openwrt-arm64.tar.gz
 sh /tmp/ipbeam/install.sh          # installs binary/config/init, enables on boot, adds fw3 hook
 
 # edit the config and start
