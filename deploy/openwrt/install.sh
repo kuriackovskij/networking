@@ -32,6 +32,9 @@ cp ipbeamd.init "$INIT"
 chmod 0755 "$INIT"
 "$INIT" enable
 
+# stash the uninstaller so it's available later (run: sh /etc/ipbeam/uninstall.sh)
+[ -f uninstall.sh ] && { cp uninstall.sh "$CONFDIR/uninstall.sh"; chmod 0755 "$CONFDIR/uninstall.sh"; }
+
 # 4. re-apply the gate on every fw3 firewall reload (fw3 flushes iptables)
 touch /etc/firewall.user
 if ! grep -qF "$HOOK" /etc/firewall.user; then

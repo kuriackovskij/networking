@@ -26,6 +26,14 @@ import (
 // version is set at build time via -ldflags "-X main.version=…".
 var version = "dev"
 
+// Routine logs (INFO/WARN) go to stdout; only genuine faults (ERROR) and fatals
+// go to stderr. This keeps normal activity out of the "err" syslog level under
+// both procd (OpenWrt) and journald/systemd (Ubuntu).
+var (
+	logOut = log.New(os.Stdout, "", log.LstdFlags)
+	logErr = log.New(os.Stderr, "", log.LstdFlags)
+)
+
 // Config is the on-disk JSON configuration — the single source of truth. Edit
 // it and restart the service to apply any change (interface, ports, password,
 // timers, logging).
@@ -105,7 +113,7 @@ func main() {
 	// The config holds the shared secret; warn loudly if anyone but the owner
 	// can read it.
 	if info, serr := os.Stat(*cfgPath); serr == nil && info.Mode().Perm()&0o077 != 0 {
-		log.Printf("WARN config %s is accessible beyond its owner (mode %04o) but holds the password; run: chown root:root %s && chmod 600 %s",
+		logOut.Printf("WARN config %s is accessible beyond its owner (mode %04o) but holds the password; run: chown root:root %s && chmod 600 %s",
 			*cfgPath, info.Mode().Perm(), *cfgPath, *cfgPath)
 	}
 
@@ -124,7 +132,7 @@ func main() {
 		log.Fatalf("firewall setup: %v", err)
 	}
 	if *setupOnly {
-		log.Print("INFO firewall rules installed; exiting (-setup-firewall)")
+		logOut.Print("INFO firewall rules installed; exiting (-setup-firewall)")
 		return
 	}
 
@@ -146,14 +154,14 @@ func main() {
 		log.Fatalf("listen: %v", err)
 	}
 	defer conn.Close()
-	log.Printf("INFO ipbeamd %s listening on %s (backend %s, wan %s, timeout %s; log_grants=%t log_rejects=%t)",
+	logOut.Printf("INFO ipbeamd %s listening on %s (backend %s, wan %s, timeout %s; log_grants=%t log_rejects=%t)",
 		version, cfg.Listen, cfg.Backend, cfg.WanIf, cfg.Timeout, cfg.LogGrants, cfg.LogRejects)
 
 	buf := make([]byte, 1500)
 	for {
 		n, src, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			log.Printf("ERROR read: %v", err)
+			logErr.Printf("ERROR read: %v", err)
 			continue
 		}
 		msg := make([]byte, n)
@@ -190,7 +198,7 @@ func (s *server) handle(conn *net.UDPConn, src *net.UDPAddr, data []byte) {
 	}
 	if err := s.addElement(set, ip); err != nil {
 		// A firewall command failing is an operational fault, always logged.
-		log.Printf("ERROR add %s -> %s failed: %v", ip, set, err)
+		logErr.Printf("ERROR add %s -> %s failed: %v", ip, set, err)
 		return
 	}
 	s.grant("granted %s (node %q) for %s", ip, pkt.NodeName, s.cfg.Timeout)
@@ -222,14 +230,14 @@ func (s *server) addElement(set string, ip net.IP) error {
 // grant logs a successful beam at INFO, only when log_grants is enabled.
 func (s *server) grant(format string, args ...any) {
 	if s.cfg.LogGrants {
-		log.Printf("INFO "+format, args...)
+		logOut.Printf("INFO "+format, args...)
 	}
 }
 
 // reject logs a failed/dropped beam at WARN, only when log_rejects is enabled.
 func (s *server) reject(format string, args ...any) {
 	if s.cfg.LogRejects {
-		log.Printf("WARN "+format, args...)
+		logOut.Printf("WARN "+format, args...)
 	}
 }
 

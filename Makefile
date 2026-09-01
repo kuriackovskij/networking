@@ -5,7 +5,7 @@
 # Filenames carry the version, e.g. dist/server/ipbeamd-1.0.0-openwrt-arm64.
 # Override the version with, e.g., `make packages VERSION=1.1.0`.
 
-VERSION ?= 1.0.0
+VERSION ?= 1.0.1
 DIST := dist
 SRV := $(DIST)/server
 CLI := $(DIST)/client
@@ -59,10 +59,11 @@ deb: server-ubuntu
 openwrt-pkg: server-openwrt
 	rm -rf $(SRV)/openwrt-pkg && mkdir -p $(SRV)/openwrt-pkg
 	cp $(SRV)/ipbeamd-$(VERSION)-openwrt-arm64 $(SRV)/openwrt-pkg/ipbeamd
-	cp deploy/openwrt/config.json  $(SRV)/openwrt-pkg/config.json
-	cp deploy/openwrt/ipbeamd.init $(SRV)/openwrt-pkg/ipbeamd.init
-	cp deploy/openwrt/install.sh   $(SRV)/openwrt-pkg/install.sh
-	chmod +x $(SRV)/openwrt-pkg/install.sh
+	cp deploy/openwrt/config.json   $(SRV)/openwrt-pkg/config.json
+	cp deploy/openwrt/ipbeamd.init  $(SRV)/openwrt-pkg/ipbeamd.init
+	cp deploy/openwrt/install.sh    $(SRV)/openwrt-pkg/install.sh
+	cp deploy/openwrt/uninstall.sh  $(SRV)/openwrt-pkg/uninstall.sh
+	chmod +x $(SRV)/openwrt-pkg/install.sh $(SRV)/openwrt-pkg/uninstall.sh
 	tar -C $(SRV)/openwrt-pkg -czf $(SRV)/ipbeamd-$(VERSION)-openwrt-arm64.tar.gz .
 	rm -rf $(SRV)/openwrt-pkg
 	@echo "built $(SRV)/ipbeamd-$(VERSION)-openwrt-arm64.tar.gz"

@@ -178,14 +178,14 @@ version in each filename.
 
 ```sh
 make test                 # unit tests
-make server-openwrt       # -> dist/server/ipbeamd-1.0.0-openwrt-arm64  (Flint 2)
-make server-ubuntu        # -> dist/server/ipbeamd-1.0.0-ubuntu-amd64
-make clients              # -> dist/client/ipbeam-1.0.0-{windows,macos,linux}-*
+make server-openwrt       # -> dist/server/ipbeamd-1.0.1-openwrt-arm64  (Flint 2)
+make server-ubuntu        # -> dist/server/ipbeamd-1.0.1-ubuntu-amd64
+make clients              # -> dist/client/ipbeam-1.0.1-{windows,macos,linux}-*
 
-make deb                  # -> dist/server/ipbeamd_1.0.0_amd64.deb    (needs nfpm)
-make openwrt-pkg          # -> dist/server/ipbeamd-1.0.0-openwrt-arm64.tar.gz
+make deb                  # -> dist/server/ipbeamd_1.0.1_amd64.deb    (needs nfpm)
+make openwrt-pkg          # -> dist/server/ipbeamd-1.0.1-openwrt-arm64.tar.gz
 make packages             # deb + openwrt tarball + CLI clients
-make android              # -> dist/client/ipbeamer-1.0.0.apk (needs Android SDK + JDK 17)
+make android              # -> dist/client/ipbeamer-1.0.1.apk (needs Android SDK + JDK 17)
 ```
 
 `make deb` needs [`nfpm`](https://nfpm.goreleaser.com/install/). Override the
@@ -196,9 +196,9 @@ version on any target, e.g. `make packages VERSION=1.1.0`.
 ```sh
 # build the package (dev machine), copy it over, install
 make deb
-scp dist/server/ipbeamd_1.0.0_amd64.deb user@server:/tmp/
+scp dist/server/ipbeamd_1.0.1_amd64.deb user@server:/tmp/
 ssh user@server
-sudo apt install /tmp/ipbeamd_1.0.0_amd64.deb   # installs binary, unit, config; enables service
+sudo apt install /tmp/ipbeamd_1.0.1_amd64.deb   # installs binary, unit, config; enables service
 
 # edit the config and start
 sudo vi /etc/ipbeam/config.json   # set password, wan_if, tcp_ports, udp_ports
@@ -216,11 +216,11 @@ it restarts a running service. If you run `ufw`, allow the beam UDP port
 ```sh
 # build the tarball (dev machine), copy it over
 make openwrt-pkg
-scp dist/server/ipbeamd-1.0.0-openwrt-arm64.tar.gz root@192.168.8.1:/tmp/
+scp dist/server/ipbeamd-1.0.1-openwrt-arm64.tar.gz root@192.168.8.1:/tmp/
 
 # on the router: unpack and run the installer
 ssh root@192.168.8.1
-mkdir -p /tmp/ipbeam && tar -C /tmp/ipbeam -xzf /tmp/ipbeamd-1.0.0-openwrt-arm64.tar.gz
+mkdir -p /tmp/ipbeam && tar -C /tmp/ipbeam -xzf /tmp/ipbeamd-1.0.1-openwrt-arm64.tar.gz
 sh /tmp/ipbeam/install.sh          # installs binary/config/init, enables on boot, adds fw3 hook
 
 # edit the config and start
@@ -250,8 +250,82 @@ The daemon is quiet by default. Two independent switches in `config.json`:
 - `log_grants`: an `INFO` line per successful grant / keep-alive.
 - `log_rejects`: a `WARN` line per rejected beam (bad password, stale, replay).
 
-Firewall-command failures always log as `ERROR`. View logs with `logread -f`
-(OpenWrt) or `journalctl -u ipbeamd -f` (Ubuntu).
+Firewall-command failures always log as `ERROR`. Routine `INFO`/`WARN` lines go
+to stdout and only real faults to stderr, so they are not mislabelled at the
+`err` syslog level. View logs with `logread -e ipbeamd` (OpenWrt) or
+`journalctl -u ipbeamd -f` (Ubuntu).
+
+## Troubleshooting (server side)
+
+**Is the daemon listening?**
+```sh
+# OpenWrt
+netstat -lnup | grep 62201        ;  logread -e ipbeamd
+# Ubuntu
+sudo ss -lunp | grep 62201        ;  systemctl status ipbeamd
+```
+If it isn't listening, run it in the foreground to see why (a firewall-setup
+error exits before it binds):
+```sh
+/usr/bin/ipbeamd -config /etc/ipbeam/config.json      # OpenWrt
+sudo /usr/local/bin/ipbeamd -config /etc/ipbeam/config.json   # Ubuntu
+```
+
+**Where are the allowed IPs stored?** In a kernel set, not a file — so they
+survive a daemon restart (that's deliberate: restarting must not lock everyone
+out, and beams are a keep-alive). Restart/reload does **not** flush the list.
+
+```sh
+# view current members
+ipset list spa_allow                      # OpenWrt (and spa_allow6)
+sudo nft list set inet ipbeam spa_allow   # Ubuntu (and spa_allow6)
+```
+
+**Flush the allow-list now** (revoke everyone immediately):
+```sh
+# OpenWrt
+ipset flush spa_allow ; ipset flush spa_allow6
+# Ubuntu
+sudo nft flush set inet ipbeam spa_allow ; sudo nft flush set inet ipbeam spa_allow6
+```
+
+**Are the gate rules installed?**
+```sh
+# OpenWrt
+iptables -t mangle -S PREROUTING | grep spa_allow
+# Ubuntu
+sudo nft list chain inet ipbeam gate
+```
+
+**Nothing gets blocked?** Usually a wrong `wan_if` (rules match no traffic) —
+see "Finding `wan_if`" above. **Everything blocked / no beams arrive?** Check
+the beam UDP port is reachable and the allow-list isn't empty.
+
+## Uninstall / redeploy
+
+The allow-list sets and gate rules persist until explicitly removed (or reboot),
+independently of the daemon — so a plain reinstall is safe and non-disruptive.
+
+**Upgrade (redeploy over an existing install):** just install the new version
+the same way — it's idempotent and keeps your config and current allow-list.
+
+```sh
+# OpenWrt: re-run the installer (keeps existing /etc/ipbeam/config.json)
+sh install.sh && /etc/init.d/ipbeamd restart
+# Ubuntu: dpkg upgrade keeps the conffile and restarts a running service
+sudo apt install ./ipbeamd_<newversion>_amd64.deb
+```
+
+**Full removal:**
+```sh
+# OpenWrt — stops service, removes binary/init/hook, tears down rules + sets.
+sh /etc/ipbeam/uninstall.sh   # (or ./uninstall.sh from the tarball); --purge also deletes /etc/ipbeam
+# Ubuntu — preremove stops the service and deletes the nft table (sets + gate).
+sudo apt remove ipbeamd    # or `apt purge ipbeamd` to also remove the config
+```
+
+After a full removal the gated ports return to normal (open per your base
+firewall). To wipe-and-redeploy cleanly: uninstall, then install again.
 
 ## Clients
 
