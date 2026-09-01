@@ -222,7 +222,7 @@ scp dist/server/ipbeamd-1.0.2-openwrt-arm64.tar.gz root@192.168.8.1:/tmp/
 # on the router: unpack and run the installer
 ssh root@192.168.8.1
 mkdir -p /tmp/ipbeam && tar -C /tmp/ipbeam -xzf /tmp/ipbeamd-1.0.2-openwrt-arm64.tar.gz
-sh /tmp/ipbeam/install.sh          # installs binary/config/init, enables on boot, adds fw3 hook
+sh /tmp/ipbeam/install.sh          # installs binary/config/init, enables on boot, registers fw3 include
 
 # edit the config and start
 vi /etc/ipbeam/config.json         # set password, wan_if, tcp_ports, udp_ports
@@ -231,8 +231,11 @@ vi /etc/ipbeam/config.json         # set password, wan_if, tcp_ports, udp_ports
 ```
 
 The installer keeps any existing config, secures it to `0600`, enables the
-service on boot, and adds the `firewall.user` hook so the gate survives fw3
-reloads. If `ipset` is missing it tells you to
+service on boot, and registers a fw3 **include with `reload '1'`** (a script at
+`/etc/ipbeam/firewall.include`) so the gate is re-applied on every firewall
+reload — including when the WAN/PPPoE link comes up after boot. (A plain
+`firewall.user` include only runs on *restart*, so the rule would be lost on the
+first reload.) If `ipset` is missing it tells you to
 `opkg update && opkg install ipset iptables-mod-ipset kmod-ipt-ipset`. The
 daemon opens the beam UDP port on the WAN itself; no extra rule needed.
 

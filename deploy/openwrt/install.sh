@@ -7,7 +7,8 @@ set -e
 BINDIR=/usr/bin
 CONFDIR=/etc/ipbeam
 INIT=/etc/init.d/ipbeamd
-HOOK="/usr/bin/ipbeamd -config /etc/ipbeam/config.json -setup-firewall"
+HOOKFILE=/etc/ipbeam/firewall.include
+OLD_HOOK="/usr/bin/ipbeamd -config /etc/ipbeam/config.json -setup-firewall"
 
 here=$(dirname "$0")
 cd "$here"
@@ -35,11 +36,30 @@ chmod 0755 "$INIT"
 # stash the uninstaller so it's available later (run: sh /etc/ipbeam/uninstall.sh)
 [ -f uninstall.sh ] && { cp uninstall.sh "$CONFDIR/uninstall.sh"; chmod 0755 "$CONFDIR/uninstall.sh"; }
 
-# 4. re-apply the gate on every fw3 firewall reload (fw3 flushes iptables)
-touch /etc/firewall.user
-if ! grep -qF "$HOOK" /etc/firewall.user; then
-	echo "$HOOK" >> /etc/firewall.user
-	echo "added firewall.user hook"
+# 4. re-apply the gate on every fw3 firewall reload.
+#    fw3 flushes the iptables ruleset (incl. our mangle rule) on *reload* — which
+#    also happens when the WAN/PPPoE link comes up after boot. A plain
+#    /etc/firewall.user include runs only on *restart*, so the rule would be lost
+#    on the first reload. We register a UCI include with `reload '1'` so it
+#    re-runs on every reload too.
+cat > "$HOOKFILE" <<EOF
+#!/bin/sh
+/usr/bin/ipbeamd -config /etc/ipbeam/config.json -setup-firewall
+EOF
+chmod 0755 "$HOOKFILE"
+
+# migrate away from the old firewall.user line if a previous install added it
+if [ -f /etc/firewall.user ] && grep -qF "$OLD_HOOK" /etc/firewall.user; then
+	grep -vF "$OLD_HOOK" /etc/firewall.user > /etc/firewall.user.tmp && mv /etc/firewall.user.tmp /etc/firewall.user
+fi
+
+# add the UCI include once (idempotent)
+if ! uci show firewall 2>/dev/null | grep -qF "$HOOKFILE"; then
+	uci add firewall include >/dev/null
+	uci set firewall.@include[-1].path="$HOOKFILE"
+	uci set firewall.@include[-1].reload='1'
+	uci commit firewall
+	echo "registered firewall include (reload=1)"
 fi
 
 # 5. dependency check

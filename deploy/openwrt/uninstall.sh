@@ -8,7 +8,8 @@ PURGE=0
 [ "$1" = "--purge" ] && PURGE=1
 
 INIT=/etc/init.d/ipbeamd
-HOOK='/usr/bin/ipbeamd -config /etc/ipbeam/config.json -setup-firewall'
+HOOKFILE=/etc/ipbeam/firewall.include
+OLD_HOOK='/usr/bin/ipbeamd -config /etc/ipbeam/config.json -setup-firewall'
 SET4="spa_allow"
 SET6="spa_allow6"
 
@@ -16,11 +17,18 @@ SET6="spa_allow6"
 [ -x "$INIT" ] && { "$INIT" stop 2>/dev/null; "$INIT" disable 2>/dev/null; }
 rm -f "$INIT" /usr/bin/ipbeamd
 
-# 2. remove the firewall.user hook line, then reload fw3 so it rebuilds the
-#    ruleset WITHOUT our mangle/INPUT rules (they are not persisted by fw3).
-if [ -f /etc/firewall.user ]; then
-	grep -vF "$HOOK" /etc/firewall.user > /etc/firewall.user.tmp 2>/dev/null || true
-	mv /etc/firewall.user.tmp /etc/firewall.user
+# 2. remove our firewall hooks, then reload fw3 so it rebuilds the ruleset
+#    WITHOUT our mangle/INPUT rules (they are not persisted by fw3).
+#    a) the UCI include (new installs)
+sec=$(uci show firewall 2>/dev/null | sed -n "s|^firewall\.\(@include\[[0-9]*\]\)\.path='$HOOKFILE'.*|\1|p" | head -1)
+if [ -n "$sec" ]; then
+	uci -q delete "firewall.$sec"
+	uci commit firewall
+fi
+rm -f "$HOOKFILE"
+#    b) the legacy firewall.user line (older installs)
+if [ -f /etc/firewall.user ] && grep -qF "$OLD_HOOK" /etc/firewall.user; then
+	grep -vF "$OLD_HOOK" /etc/firewall.user > /etc/firewall.user.tmp && mv /etc/firewall.user.tmp /etc/firewall.user
 fi
 /etc/init.d/firewall reload 2>/dev/null || true
 
