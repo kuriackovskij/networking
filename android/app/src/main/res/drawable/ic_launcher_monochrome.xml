@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Single-colour upward beam for Android 13+ themed icons (system tints it). -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,26 L82,64 L66,64 L66,86 L42,86 L42,64 L26,64 Z" />
+</vector>

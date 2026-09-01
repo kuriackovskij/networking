@@ -1,0 +1,41 @@
+# nfpm config for the Ubuntu .deb — https://nfpm.goreleaser.com/
+# Build with:  make deb   (VERSION overridable, e.g. `make deb VERSION=1.2.0`)
+name: "ipbeamd"
+arch: "amd64"
+platform: "linux"
+version: "${VERSION}"
+section: "net"
+priority: "optional"
+maintainer: "Aleks K."
+description: |
+  IP-Beamer single-packet-authorization daemon.
+  Opens firewall access to a device's public IP after an authenticated UDP beam,
+  with the address auto-expiring when no fresh beam arrives.
+homepage: "https://github.com/kuriackovskij/networking"
+license: "MIT"
+
+contents:
+  # Stable staging name populated by `make deb` (the versioned binary is copied
+  # here just before packaging); env vars are not expanded in this glob.
+  - src: ./dist/server/ipbeamd-ubuntu-amd64
+    dst: /usr/local/bin/ipbeamd
+    file_info:
+      mode: 0755
+
+  - src: ./deploy/ubuntu/ipbeamd.service
+    dst: /lib/systemd/system/ipbeamd.service
+    file_info:
+      mode: 0644
+
+  # Marked config|noreplace so dpkg never clobbers an edited config on upgrade.
+  - src: ./deploy/ubuntu/config.json
+    dst: /etc/ipbeam/config.json
+    type: "config|noreplace"
+    file_info:
+      mode: 0600
+      owner: root
+      group: root
+
+scripts:
+  postinstall: ./deploy/ubuntu/postinstall.sh
+  preremove: ./deploy/ubuntu/preremove.sh

@@ -1,0 +1,17 @@
+{
+  "listen": ":62201",
+  "password": "CHANGE-ME-to-a-long-passphrase-of-4-to-6-random-words",
+  "backend": "ipset",
+  "wan_if": "eth1",
+  "tcp_ports": [443, 8443],
+  "udp_ports": [],
+  "protocols": [],
+  "set4": "spa_allow",
+  "set6": "spa_allow6",
+  "timeout": "60m",
+  "replay_window": "30s",
+  "maxelem": 4096,
+  "send_ack": true,
+  "log_grants": false,
+  "log_rejects": false
+}

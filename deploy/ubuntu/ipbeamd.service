@@ -1,0 +1,26 @@
+# systemd unit for the IP-Beamer daemon on Ubuntu 24.04.
+# Install as /etc/systemd/system/ipbeamd.service, then:
+#     sudo systemctl daemon-reload && sudo systemctl enable --now ipbeamd
+# `enable` makes it start on boot; `--now` also starts it immediately.
+#
+# Runs as root so it can read the root-only config (which holds the password)
+# and manage nftables. The daemon installs its firewall rules on start and
+# leaves them in place if it stops, so the gate stays closed (fail-safe).
+
+[Unit]
+Description=IP-Beamer single-packet-authorization daemon
+After=network-online.target nftables.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ipbeamd -config /etc/ipbeam/config.json
+Restart=on-failure
+RestartSec=2
+
+# Hardening that does not interfere with reading /etc or editing netfilter.
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

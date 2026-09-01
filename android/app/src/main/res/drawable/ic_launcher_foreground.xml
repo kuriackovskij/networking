@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- White shield (security) with an upward beam cut out of it. Content sits
+         inside the 72dp adaptive-icon safe zone. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,22 L80,32 L80,52 C80,70 68,80 54,86 C40,80 28,70 28,52 L28,32 Z" />
+    <path
+        android:fillColor="#0E7C86"
+        android:pathData="M54,40 L66,55 L59,55 L59,70 L49,70 L49,55 L42,55 Z" />
+</vector>

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Window theme used before Compose draws; Compose supplies the UI colours. -->
+    <style name="Theme.IPBeamer" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

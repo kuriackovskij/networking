@@ -1,0 +1,17 @@
+{
+  "listen": ":62201",
+  "password": "CHANGE-ME-to-a-long-passphrase-of-4-to-6-random-words",
+  "backend": "nft",
+  "wan_if": "eth0",
+  "tcp_ports": [443, 8443],
+  "udp_ports": [51820],
+  "protocols": [],
+  "set4": "spa_allow",
+  "set6": "spa_allow6",
+  "nft_table": "ipbeam",
+  "timeout": "60m",
+  "replay_window": "30s",
+  "send_ack": true,
+  "log_grants": false,
+  "log_rejects": false
+}
