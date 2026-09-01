@@ -108,6 +108,11 @@ rules itself from this file on start, so there is nothing else to touch.
 Durations accept Go syntax: `s`, `m`, `h` (e.g. `90m`, `2h`, `45s`). The
 `ipset` backend allows at most 15 ports per list (kernel `multiport` limit).
 
+**Finding `wan_if`.** Run `ip route show default` — the `dev` it names is your
+WAN interface. On a plain DHCP/static WAN that's usually `eth1`; on a **PPPoE**
+link it's the PPP interface, typically **`pppoe-wan`** (not the underlying
+`eth1`/`eth1.x`, since the gate must match traffic after PPP decapsulation).
+
 **Gating whole protocols.** `tcp_ports`/`udp_ports` gate specific ports; use
 `protocols` for port-less protocols you want restricted to whitelisted IPs —
 e.g. `"protocols": ["icmp", "esp"]` blocks ping and IPsec/ESP from everyone but
